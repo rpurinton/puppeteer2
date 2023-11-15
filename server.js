@@ -58,15 +58,9 @@ async function extractData(page, responseType) {
       return page.evaluate(() => document.body.innerText);
     case 'html':
       return page.content();
-    case 'links-array':
-    case 'images-array':
-    case 'links-images-array':
-    case 'text-links-array':
-    case 'text-images-array':
-    case 'text-links-images-array':
-    case 'text-links-inline':
-    case 'text-images-inline':
-    case 'text-links-images-inline':
+    case 'textWithLinks':
+    case 'textWithImages':
+    case 'textLinksImages':
       return page.evaluate(extractComplexData, responseType);
     default:
       throw new Error('Invalid response type');
@@ -79,59 +73,12 @@ function extractComplexData(responseType) {
   const text = document.body.innerText;
   const links = anchors.map(anchor => anchor.href);
   const imageLinks = images.map(img => img.src).filter(src => !src.startsWith('data:'));
-  const data = {};
-
-  if (responseType.includes('text')) {
-    data.text = text;
-  }
-
-  if (responseType.includes('links-array')) {
+  const data = { text };
+  if (responseType.includes('WithLinks')) {
     data.links = links;
   }
-
-  if (responseType.includes('images-array')) {
+  if (responseType.includes('WithImages')) {
     data.imageLinks = imageLinks;
-  }
-
-  if (responseType.includes('links-images-array')) {
-    data.links = links;
-    data.imageLinks = imageLinks;
-  }
-
-  if (responseType.includes('links-inline')) {
-
-    const linkTexts = anchors.map(anchor => anchor.innerText);
-    const linkTextsMap = {};
-    linkTexts.forEach((text, index) => linkTextsMap[text] = links[index]);
-    const linkTextsRegex = new RegExp(linkTexts.join('|'), 'g');
-    data.text = text.replace(linkTextsRegex, matched => `[${matched}](${linkTextsMap[matched]})`);
-  }
-
-  if (responseType.includes('images-inline')) {
-    const imageLinksRegex = new RegExp(imageLinks.join('|'), 'g');
-    data.text = text.replace(imageLinksRegex, matched => `[${matched}]`);
-  }
-
-  if (responseType.includes('links-images-inline')) {
-    const linkTexts = anchors.map(anchor => anchor.innerText);
-    const linkTextsMap = {};
-    linkTexts.forEach((text, index) => linkTextsMap[text] = links[index]);
-    const linkTextsRegex = new RegExp(linkTexts.join('|'), 'g');
-    data.text = text.replace(linkTextsRegex, matched => `[${matched}](${linkTextsMap[matched]})`);
-
-    const imageLinksRegex = new RegExp(imageLinks.join('|'), 'g');
-    data.text = data.text.replace(imageLinksRegex, matched => `[${matched}]`);
-  }
-
-  if (responseType.includes('text-links-images-inline')) {
-    const linkTexts = anchors.map(anchor => anchor.innerText);
-    const linkTextsMap = {};
-    linkTexts.forEach((text, index) => linkTextsMap[text] = links[index]);
-    const linkTextsRegex = new RegExp(linkTexts.join('|'), 'g');
-    data.text = text.replace(linkTextsRegex, matched => `[${matched}](${linkTextsMap[matched]})`);
-
-    const imageLinksRegex = new RegExp(imageLinks.join('|'), 'g');
-    data.text = data.text.replace(imageLinksRegex, matched => `[${matched}]`);
   }
   return data;
 }
