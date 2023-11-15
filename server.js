@@ -57,7 +57,7 @@ const server = http.createServer(async (req, res) => {
             data = await page.evaluate(() => {
               const images = Array.from(document.querySelectorAll('img'));
               const text = document.body.innerText;
-              const imageLinks = images.map(img => img.src);
+              const imageLinks = images.map(img => img.src).filter(src => !src.startsWith('data:'));
               return { text, imageLinks };
             });
             break;
@@ -67,7 +67,7 @@ const server = http.createServer(async (req, res) => {
               const images = Array.from(document.querySelectorAll('img'));
               const text = document.body.innerText;
               const links = anchors.map(anchor => anchor.href);
-              const imageLinks = images.map(img => img.src);
+              const imageLinks = images.map(img => img.src).filter(src => !src.startsWith('data:'));
               return { text, links, imageLinks };
             });
             break;
