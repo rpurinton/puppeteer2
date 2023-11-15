@@ -138,16 +138,9 @@ process.on('SIGTERM', shutdown);
 async function shutdown() {
   server.close(() => {
     if (browserInstance) {
-      browserInstance.close().then(() => {
-        process.exit(0);
-      });
-    } else {
-      process.exit(0);
+      browserInstance.close();
     }
   });
-  setTimeout(() => {
-    process.exit(1);
-  }, 10000);
 }
 
 module.exports = { server, shutdown };
