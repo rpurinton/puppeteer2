@@ -70,7 +70,11 @@ async function extractData(page, responseType) {
     case 'links':
       return { title, links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href)) };
     case 'images':
-      return { title, images: await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)) };
+      return {
+        title,
+        images: (await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)))
+          .filter(src => !src.startsWith('data:image'))
+      };
     case 'text+links':
       return {
         title,
@@ -81,20 +85,23 @@ async function extractData(page, responseType) {
       return {
         title,
         text: await page.evaluate(() => document.body.innerText),
-        images: await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src))
+        images: (await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)))
+          .filter(src => !src.startsWith('data:image'))
       };
     case 'links+images':
       return {
         title,
         links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href)),
-        images: await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src))
+        images: (await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)))
+          .filter(src => !src.startsWith('data:image'))
       };
     case 'text+links+images':
       return {
         title,
         text: await page.evaluate(() => document.body.innerText),
         links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href)),
-        images: await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src))
+        images: (await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)))
+          .filter(src => !src.startsWith('data:image'))
       };
     case 'text+links-inline':
     case 'text+images-inline':
@@ -118,8 +125,10 @@ async function extractInlineData(page, responseType, title) {
   }
   if (responseType.includes('images')) {
     images.forEach(img => {
-      const imgText = img.alt || '';
-      inlineText = inlineText.replace(imgText, `(${img.src})`);
+      if (!img.src.startsWith('data:image')) {
+        const imgText = img.alt || '';
+        inlineText = inlineText.replace(imgText, `(${img.src})`);
+      }
     });
   }
 
