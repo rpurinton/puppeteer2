@@ -7,7 +7,7 @@ async function getBrowserInstance() {
   if (!browserInstance) {
     browserInstance = await puppeteer.launch({
       executablePath: '/usr/bin/chromium-browser',
-      headless: true,
+      headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
   }
