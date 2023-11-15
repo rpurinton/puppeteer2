@@ -25,7 +25,7 @@ const server = http.createServer(async (req, res) => {
         const responseType = requestData.responseType || 'text'; // Default to 'text' if not specified
 
         // Launch puppeteer
-        const browser = await puppeteer.launch({ executablePath: '/usr/bin/chromium-browser' });
+        const browser = await puppeteer.launch({ executablePath: '/usr/bin/chromium-browser', headless: "new" });
         const page = await browser.newPage();
 
         // Set custom headers if provided
