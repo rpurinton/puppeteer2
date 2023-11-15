@@ -1,7 +1,6 @@
-// FILEPATH: /Users/russell/Documents/GitHub/puppeteer2/server.test.js
 const http = require('http');
 const supertest = require('supertest');
-const server = require('./server'); // Assuming your server is exported from server.js
+const server = require('./server');
 
 let agent;
 
@@ -45,7 +44,7 @@ test('POST / with invalid method', async () => {
 test('POST / with invalid headers', async () => {
   const response = await agent
     .post('/')
-    .send({ url: 'https://example.com', method: 'GET', headers: 'INVALID', responseType: 'text' })
+    .send({ url: 'https://example.com', method: 'GET', headers: { 'Content-Type': 'INVALID' }, responseType: 'text' })
     .set('Content-Type', 'application/json');
 
   expect(response.status).toBe(500);
