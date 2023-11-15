@@ -156,4 +156,4 @@ async function shutdown() {
   }, 10000);
 }
 
-module.exports = server;
+module.exports = { server, shutdown };
