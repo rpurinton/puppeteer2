@@ -66,6 +66,12 @@ async function extractData(page, responseType) {
       return { title, links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href)) };
     case 'images':
       return { title, images: await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)) };
+    case 'text+links':
+      return {
+        title,
+        text: await page.evaluate(() => document.body.innerText),
+        links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href))
+      };
     case 'links+images':
       return {
         title,
