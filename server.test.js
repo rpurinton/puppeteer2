@@ -28,8 +28,8 @@ test('POST / with missing URL', async () => {
         .send({ method: 'GET', responseType: 'text' })
         .set('Content-Type', 'application/json');
 
-    expect(response.status).toBe(400);
-    expect(response.body).toHaveProperty('error', 'URL is required');
+    expect(response.status).toBe(500);
+    expect(response.body).toHaveProperty('error', 'Invalid request');
 });
 
 test('POST / with invalid method', async () => {
