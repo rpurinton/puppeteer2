@@ -44,7 +44,7 @@ test('POST / with invalid method', async () => {
 test('POST / with invalid headers', async () => {
     const response = await agent
         .post('/')
-        .send({ url: 'https://example.com', method: 'GET', headers: { 'Content-Type': 'INVALID' }, responseType: 'text' })
+        .send({ url: 'https://example.com', method: 'GET', headers: "invalid", responseType: 'text' })
         .set('Content-Type', 'application/json');
 
     expect(response.status).toBe(500);
