@@ -15,20 +15,20 @@ async function getBrowserInstance() {
 }
 
 async function handleRequest(req, res) {
-  const { method, headers } = req;
-  if (method !== 'POST' || headers['content-type'] !== 'application/json') {
-    res.writeHead(405, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ error: 'Method Not Allowed' }));
-  }
-
-  let body = '';
-  for await (const chunk of req) {
-    body += chunk;
-  }
-
   try {
+    const { method, headers } = req;
+    if (method !== 'POST' || headers['content-type'] !== 'application/json') {
+      res.writeHead(405, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+    }
+
+    let body = '';
+    for await (const chunk of req) {
+      body += chunk;
+    }
+
     const requestData = JSON.parse(body);
-    const { url, method = 'GET', postData = '', contentType = 'application/x-www-form-urlencoded', headers = {}, responseType = 'text' } = requestData;
+    const { url, method: reqMethod = 'GET', postData = '', contentType = 'application/x-www-form-urlencoded', headers: reqHeaders = {}, responseType = 'text' } = requestData;
     if (!url) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'URL is required' }));
@@ -36,13 +36,13 @@ async function handleRequest(req, res) {
 
     const browser = await getBrowserInstance();
     const page = await browser.newPage();
-    if (headers['User-Agent']) {
-      await page.setUserAgent(headers['User-Agent']);
+    if (reqHeaders['User-Agent']) {
+      await page.setUserAgent(reqHeaders['User-Agent']);
     }
-    if (Object.keys(headers).length > 0) {
-      await page.setExtraHTTPHeaders(headers);
+    if (Object.keys(reqHeaders).length > 0) {
+      await page.setExtraHTTPHeaders(reqHeaders);
     }
-    await page.goto(url, { method, postData, headers: { 'Content-Type': contentType } });
+    await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
 
     let data = await extractData(page, responseType);
     await page.close();
