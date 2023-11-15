@@ -36,6 +36,9 @@ async function handleRequest(req, res) {
 
     const browser = await getBrowserInstance();
     const page = await browser.newPage();
+    if (headers['User-Agent']) {
+      await page.setUserAgent(headers['User-Agent']);
+    }
     if (Object.keys(headers).length > 0) {
       await page.setExtraHTTPHeaders(headers);
     }
@@ -45,7 +48,7 @@ async function handleRequest(req, res) {
     await page.close();
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ data }));
+    res.end(JSON.stringify(data));
   } catch (error) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: error.message }));
@@ -53,34 +56,57 @@ async function handleRequest(req, res) {
 }
 
 async function extractData(page, responseType) {
+  const title = await page.title();
   switch (responseType) {
-    case 'text':
-      return page.evaluate(() => document.body.innerText);
     case 'html':
-      return page.content();
-    case 'textWithLinks':
-    case 'textWithImages':
-    case 'textLinksImages':
-      return page.evaluate(extractComplexData, responseType);
+      return { title, html: await page.content() };
+    case 'text':
+      return { title, text: await page.evaluate(() => document.body.innerText) };
+    case 'links':
+      return { title, links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href)) };
+    case 'images':
+      return { title, images: await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)) };
+    case 'links+images':
+      return {
+        title,
+        links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href)),
+        images: await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src))
+      };
+    case 'text+links+images':
+      return {
+        title,
+        text: await page.evaluate(() => document.body.innerText),
+        links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href)),
+        images: await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src))
+      };
+    case 'text+links-inline':
+    case 'text+images-inline':
+    case 'text+links+images-inline':
+      return await extractInlineData(page, responseType, title);
     default:
       throw new Error('Invalid response type');
   }
 }
 
-function extractComplexData(responseType) {
-  const anchors = Array.from(document.querySelectorAll('a'));
-  const images = Array.from(document.querySelectorAll('img'));
-  const text = document.body.innerText;
-  const links = anchors.map(anchor => anchor.href);
-  const imageLinks = images.map(img => img.src).filter(src => !src.startsWith('data:'));
-  const data = { text };
-  if (responseType.includes('WithLinks')) {
-    data.links = links;
+async function extractInlineData(page, responseType, title) {
+  const text = await page.evaluate(() => document.body.innerText);
+  const anchors = await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => ({ href: anchor.href, text: anchor.innerText })));
+  const images = await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => ({ src: img.src, alt: img.alt })));
+
+  let inlineText = text;
+  if (responseType.includes('links')) {
+    anchors.forEach(anchor => {
+      inlineText = inlineText.replace(anchor.text, `[${anchor.text}](${anchor.href})`);
+    });
   }
-  if (responseType.includes('WithImages')) {
-    data.imageLinks = imageLinks;
+  if (responseType.includes('images')) {
+    images.forEach(img => {
+      const imgText = img.alt || '';
+      inlineText = inlineText.replace(imgText, `(${img.src})`);
+    });
   }
-  return data;
+
+  return { title, text: inlineText };
 }
 
 const server = http.createServer(handleRequest);
