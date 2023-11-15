@@ -132,4 +132,21 @@ server.listen(5469, () => {
   console.log('Server running on port 5469');
 });
 
-module.exports = server;
+async function close() {
+  return new Promise((resolve, reject) => {
+    server.close(err => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      if (browserInstance) {
+        browserInstance.close().then(resolve).catch(reject);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+module.exports = { server, close };

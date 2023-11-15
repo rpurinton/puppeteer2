@@ -1,6 +1,7 @@
-const http = require('http');
 const supertest = require('supertest');
 const server = require('./server');
+const { close } = require('./server');
+
 
 let agent;
 
@@ -9,7 +10,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-    server.close();
+    return close();
 });
 
 test('POST / with valid URL and options', async () => {
