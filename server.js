@@ -94,3 +94,5 @@ const server = http.createServer(async (req, res) => {
 server.listen(5469, () => {
   console.log('Server running on port 5469');
 });
+
+module.exports = server;
