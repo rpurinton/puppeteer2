@@ -29,9 +29,9 @@ async function handleRequest(req, res) {
 
     const requestData = JSON.parse(body);
     const { url, method: reqMethod = 'GET', postData = '', contentType = 'application/x-www-form-urlencoded', headers: reqHeaders = {}, responseType = 'text' } = requestData;
-    if (!url) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ error: 'URL is required' }));
+    if (!url || !['GET', 'POST', 'PUT', 'DELETE'].includes(reqMethod) || typeof reqHeaders !== 'object') {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Invalid request' }));
     }
 
     const browser = await getBrowserInstance();
