@@ -40,6 +40,11 @@ async function handleRequest(req, res) {
       await page.setUserAgent(reqHeaders['User-Agent']);
     }
     if (Object.keys(reqHeaders).length > 0) {
+      // validate headers, send 500 if invalid
+      if (Object.keys(reqHeaders).some(header => !/^[A-Za-z0-9-]+$/g.test(header))) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Invalid headers' }));
+      }
       await page.setExtraHTTPHeaders(reqHeaders);
     }
     await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
