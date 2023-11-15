@@ -1,0 +1,15 @@
+[Unit]
+Description=Puppeteer2 Node.js Server
+After=network.target
+
+[Service]
+Type=simple
+User=puppeteer
+Group=puppeteer
+WorkingDirectory=/var/www/puppeteer2
+Environment=PUPPETEER_CACHE_DIR=/var/www/puppeteer2/.cache
+ExecStart=/usr/bin/node /var/www/puppeteer2/server.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

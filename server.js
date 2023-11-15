@@ -22,10 +22,10 @@ const server = http.createServer(async (req, res) => {
         const postData = requestData.postData || '';
         const contentType = requestData.contentType || 'application/x-www-form-urlencoded';
         const headers = requestData.headers || {};
-        const responseType = requestData.responseType || 'html'; // 'text', 'links', 'images', 'textWithLinks', 'textWithImages', 'imagesWithLinks', 'all'
+        const responseType = requestData.responseType || 'text'; // Default to 'text' if not specified
 
         // Launch puppeteer
-        const browser = await puppeteer.launch();
+        const browser = await puppeteer.launch({ executablePath: '/usr/bin/chromium-browser' });
         const page = await browser.newPage();
 
         // Set custom headers if provided
@@ -42,8 +42,36 @@ const server = http.createServer(async (req, res) => {
           case 'text':
             data = await page.evaluate(() => document.body.innerText);
             break;
-          // Add cases for 'links', 'images', etc.
-          // ...
+          case 'html':
+            data = await page.content();
+            break;
+          case 'textWithLinks':
+            data = await page.evaluate(() => {
+              const anchors = Array.from(document.querySelectorAll('a'));
+              const text = document.body.innerText;
+              const links = anchors.map(anchor => anchor.href);
+              return { text, links };
+            });
+            break;
+          case 'textWithImages':
+            data = await page.evaluate(() => {
+              const images = Array.from(document.querySelectorAll('img'));
+              const text = document.body.innerText;
+              const imageLinks = images.map(img => img.src);
+              return { text, imageLinks };
+            });
+            break;
+          case 'textLinksImages':
+            data = await page.evaluate(() => {
+              const anchors = Array.from(document.querySelectorAll('a'));
+              const images = Array.from(document.querySelectorAll('img'));
+              const text = document.body.innerText;
+              const links = anchors.map(anchor => anchor.href);
+              const imageLinks = images.map(img => img.src);
+              return { text, links, imageLinks };
+            });
+            break;
+          // Add more cases as needed
         }
 
         // Close the browser
