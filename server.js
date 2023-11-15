@@ -136,22 +136,16 @@ process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
 async function shutdown() {
-  console.log('Received kill signal, shutting down gracefully');
   server.close(() => {
-    console.log('Closed out remaining connections');
     if (browserInstance) {
       browserInstance.close().then(() => {
-        console.log('Puppeteer browser closed');
         process.exit(0);
       });
     } else {
       process.exit(0);
     }
   });
-
-  // if after 
   setTimeout(() => {
-    console.error('Could not close connections in time, forcefully shutting down');
     process.exit(1);
   }, 10000);
 }
