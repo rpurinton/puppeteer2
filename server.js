@@ -1,5 +1,7 @@
 const http = require('http');
 const puppeteer = require('puppeteer');
+const mysql = require('mysql');
+const crypto = require('crypto');
 
 let browserInstance;
 
@@ -17,11 +19,22 @@ async function getBrowserInstance() {
 async function handleRequest(req, res) {
   try {
     const { method, headers } = req;
+    if (method === 'GET') {
+      const shortUrl = req.url.slice(1); // Remove the leading slash
+      db.query('SELECT `original_url` FROM `urls` WHERE `short_url` = ?', [shortUrl], (err, result) => {
+        if (err || result.length === 0) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Not Found' }));
+        }
+        res.writeHead(301, { 'Location': result[0].original_url });
+        res.end();
+      });
+      return;
+    }
     if (method !== 'POST' || headers['content-type'] !== 'application/json') {
       res.writeHead(405, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'Method Not Allowed' }));
     }
-
     let body = '';
     for await (const chunk of req) {
       body += chunk;
@@ -120,7 +133,7 @@ async function extractInlineData(page, responseType, title) {
   let inlineText = text;
   if (responseType.includes('links')) {
     anchors.forEach(anchor => {
-      inlineText = inlineText.replace(anchor.text, `[${anchor.text}](${anchor.href})`);
+      inlineText = inlineText.replace(anchor.text, `[${anchor.text}](https://puppeteer2.discommand.com/${generateShortUrl(anchor.href)})`);
     });
   }
   if (responseType.includes('images')) {
@@ -134,6 +147,37 @@ async function extractInlineData(page, responseType, title) {
 
   return { title, text: inlineText };
 }
+
+
+function generateShortUrl(originalUrl) {
+  return new Promise((resolve, reject) => {
+    db.query('SELECT `short_url` FROM `urls` WHERE `original_url` = ?', [originalUrl], (err, result) => {
+      if (err) {
+        reject(err);
+      } else if (result.length > 0) {
+        resolve(result[0].short_url);
+      } else {
+        const shortUrl = crypto.randomBytes(6).toString('hex');
+        db.query('INSERT INTO `urls` (`short_url`, `original_url`) VALUES (?, ?)', [shortUrl, originalUrl], (insertErr, insertResult) => {
+          if (insertErr) reject(insertErr);
+          resolve(shortUrl);
+        });
+      }
+    });
+  });
+}
+
+const db = mysql.createConnection({
+  host: '127.0.0.1',
+  user: 'puppeteer2',
+  password: 'puppeteer2',
+  database: 'puppeteer2'
+});
+
+db.connect((err) => {
+  if (err) throw err;
+  console.log('Connected to the database');
+});
 
 const server = http.createServer(handleRequest);
 
