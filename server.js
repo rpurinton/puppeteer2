@@ -51,6 +51,8 @@ async function handleRequest(req, res) {
     const page = await browser.newPage();
     if (reqHeaders['User-Agent']) {
       await page.setUserAgent(reqHeaders['User-Agent']);
+    } else {
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     }
     if (Object.keys(reqHeaders).length > 0) {
       // validate headers, send 500 if invalid
