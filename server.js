@@ -132,9 +132,11 @@ async function extractInlineData(page, responseType, title) {
 
   let inlineText = text;
   if (responseType.includes('links')) {
-    anchors.forEach(anchor => {
-      inlineText = inlineText.replace(anchor.text, `[${anchor.text}](https://puppeteer2.discommand.com/${generateShortUrl(anchor.href)})`);
+    const anchorPromises = anchors.map(async anchor => {
+      const shortUrl = await generateShortUrl(anchor.href);
+      inlineText = inlineText.replace(anchor.text, `[${anchor.text}](https://puppeteer2.discommand.com/${shortUrl})`);
     });
+    await Promise.all(anchorPromises);
   }
   if (responseType.includes('images')) {
     images.forEach(img => {
