@@ -196,6 +196,7 @@ async function shutdown() {
       browserInstance.close();
     }
   });
+  db.end();
 }
 
 module.exports = { server, shutdown };
