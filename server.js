@@ -158,8 +158,7 @@ async function extractInlineData(page, responseType, title) {
 
 function generateShortUrl(originalUrl) {
   return new Promise((resolve, reject) => {
-    const shortUrl = crypto.randomBytes(6).toString('hex');
-    db.query('INSERT INTO `urls` (`short_url`, `original_url`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `short_url`=LAST_INSERT_ID(`short_url`)', [shortUrl, originalUrl], (insertErr, insertResult) => {
+    db.query('INSERT INTO `urls` (`original_url`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `short_url` = LAST_INSERT_ID(`short_url`)', [originalUrl], (insertErr, insertResult) => {
       if (insertErr) {
         reject(insertErr);
       } else {
