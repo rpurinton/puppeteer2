@@ -158,7 +158,7 @@ async function extractInlineData(page, responseType, title) {
 
 function generateShortUrl(originalUrl) {
   return new Promise((resolve, reject) => {
-    db.query('INSERT INTO `urls` (`original_url`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `short_url` = LAST_INSERT_ID(`short_url`)', [originalUrl], (insertErr, insertResult) => {
+    db.query('INSERT INTO `urls` (`original_url`) VALUES (?) ON DUPLICATE KEY UPDATE `short_url` = LAST_INSERT_ID(`short_url`)', [originalUrl], (insertErr, insertResult) => {
       if (insertErr) {
         reject(insertErr);
       } else {
