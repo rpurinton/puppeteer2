@@ -150,7 +150,6 @@ async function extractInlineData(page, responseType, title) {
   return { title, text: inlineText };
 }
 
-
 function generateShortUrl(originalUrl) {
   return new Promise((resolve, reject) => {
     db.query('SELECT `short_url` FROM `urls` WHERE `original_url` = ?', [originalUrl], (err, result) => {
@@ -161,8 +160,11 @@ function generateShortUrl(originalUrl) {
       } else {
         const shortUrl = crypto.randomBytes(6).toString('hex');
         db.query('INSERT INTO `urls` (`short_url`, `original_url`) VALUES (?, ?)', [shortUrl, originalUrl], (insertErr, insertResult) => {
-          if (insertErr) reject(insertErr);
-          resolve(shortUrl);
+          if (insertErr) {
+            reject(insertErr);
+          } else {
+            resolve(shortUrl);  // Moved inside the callback
+          }
         });
       }
     });
