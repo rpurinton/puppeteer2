@@ -133,8 +133,14 @@ async function extractInlineData(page, responseType, title) {
   let inlineText = text;
   if (responseType.includes('links')) {
     const anchorPromises = anchors.map(async anchor => {
-      const shortUrl = await generateShortUrl(anchor.href);
-      inlineText = inlineText.replace(anchor.text, `[${anchor.text}](https://puppeteer2.discommand.com/${shortUrl})`);
+      try {
+        console.log(`Generating short URL for: ${anchor.href}`);
+        const shortUrl = await generateShortUrl(anchor.href);
+        console.log(`Generated short URL: ${shortUrl}`);
+        inlineText = inlineText.replace(anchor.text, `[${anchor.text}](https://puppeteer2.discommand.com/${shortUrl})`);
+      } catch (error) {
+        console.error(`Error generating short URL for ${anchor.href}: ${error.message}`);
+      }
     });
     await Promise.all(anchorPromises);
   }
@@ -149,7 +155,6 @@ async function extractInlineData(page, responseType, title) {
 
   return { title, text: inlineText };
 }
-
 function generateShortUrl(originalUrl) {
   return new Promise((resolve, reject) => {
     db.query('SELECT `short_url` FROM `urls` WHERE `original_url` = ?', [originalUrl], (err, result) => {
