@@ -155,22 +155,15 @@ async function extractInlineData(page, responseType, title) {
 
   return { title, text: inlineText };
 }
+
 function generateShortUrl(originalUrl) {
   return new Promise((resolve, reject) => {
-    db.query('SELECT `short_url` FROM `urls` WHERE `original_url` = ?', [originalUrl], (err, result) => {
-      if (err) {
-        reject(err);
-      } else if (result.length > 0) {
-        resolve(result[0].short_url);
+    const shortUrl = crypto.randomBytes(6).toString('hex');
+    db.query('INSERT INTO `urls` (`short_url`, `original_url`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `short_url`=LAST_INSERT_ID(`short_url`)', [shortUrl, originalUrl], (insertErr, insertResult) => {
+      if (insertErr) {
+        reject(insertErr);
       } else {
-        const shortUrl = crypto.randomBytes(6).toString('hex');
-        db.query('INSERT INTO `urls` (`short_url`, `original_url`) VALUES (?, ?)', [shortUrl, originalUrl], (insertErr, insertResult) => {
-          if (insertErr) {
-            reject(insertErr);
-          } else {
-            resolve(shortUrl);  // Moved inside the callback
-          }
-        });
+        resolve(insertResult.insertId);
       }
     });
   });
