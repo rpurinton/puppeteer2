@@ -77,54 +77,39 @@ async function handleRequest(req, res) {
 
 async function extractData(page, responseType) {
   const title = await page.title();
-  switch (responseType) {
-    case 'html':
-      return { title, html: await page.content() };
-    case 'text':
-      return { title, text: await page.evaluate(() => document.body.innerText) };
-    case 'links':
-      return { title, links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href)) };
-    case 'images':
-      return {
-        title,
-        images: (await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)))
-          .filter(src => !src.startsWith('data:image'))
-      };
-    case 'text+links':
-      return {
-        title,
-        text: await page.evaluate(() => document.body.innerText),
-        links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href))
-      };
-    case 'text+images':
-      return {
-        title,
-        text: await page.evaluate(() => document.body.innerText),
-        images: (await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)))
-          .filter(src => !src.startsWith('data:image'))
-      };
-    case 'links+images':
-      return {
-        title,
-        links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href)),
-        images: (await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)))
-          .filter(src => !src.startsWith('data:image'))
-      };
-    case 'text+links+images':
-      return {
-        title,
-        text: await page.evaluate(() => document.body.innerText),
-        links: await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href)),
-        images: (await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)))
-          .filter(src => !src.startsWith('data:image'))
-      };
-    case 'text+links-inline':
-    case 'text+images-inline':
-    case 'text+links+images-inline':
-      return await extractInlineData(page, responseType, title);
-    default:
-      throw new Error('Invalid response type');
+  const responseTypes = {
+    'html': async () => ({ title, html: await page.content() }),
+    'text': async () => ({ title, text: await getText(page) }),
+    'links': async () => ({ title, links: await getLinks(page) }),
+    'images': async () => ({ title, images: await getImages(page) }),
+    'text+links': async () => ({ title, text: await getText(page), links: await getLinks(page) }),
+    'text+images': async () => ({ title, text: await getText(page), images: await getImages(page) }),
+    'links+images': async () => ({ title, links: await getLinks(page), images: await getImages(page) }),
+    'text+links+images': async () => ({ title, text: await getText(page), links: await getLinks(page), images: await getImages(page) }),
+    'text+links-inline': async () => await extractInlineData(page, responseType, title),
+    'text+images-inline': async () => await extractInlineData(page, responseType, title),
+    'text+links+images-inline': async () => await extractInlineData(page, responseType, title)
+  };
+
+  const response = responseTypes[responseType];
+  if (!response) {
+    throw new Error('Invalid response type');
   }
+
+  return await response();
+}
+
+async function getText(page) {
+  return await page.evaluate(() => document.body.innerText);
+}
+
+async function getLinks(page) {
+  return await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(anchor => anchor.href));
+}
+
+async function getImages(page) {
+  return (await page.evaluate(() => Array.from(document.querySelectorAll('img')).map(img => img.src)))
+    .filter(src => !src.startsWith('data:image'));
 }
 
 async function extractInlineData(page, responseType, title) {
