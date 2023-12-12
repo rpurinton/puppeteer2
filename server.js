@@ -137,7 +137,7 @@ async function extractInlineData(page, responseType, title) {
     const anchorPromises = anchors.map(async anchor => {
       try {
         const shortUrl = await generateShortUrl(anchor.href);
-        inlineText = inlineText.replace(anchor.text, `[${anchor.text}](https://puppeteer2.discommand.com/${shortUrl})`);
+        inlineText = inlineText.replace(anchor.text, `[${anchor.text}](<https://puppeteer2.discommand.com/${shortUrl}>)`);
       } catch (error) {
         console.error(`Error generating short URL for ${anchor.href}: ${error.message}`);
       }
