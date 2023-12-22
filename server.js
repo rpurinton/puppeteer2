@@ -88,7 +88,8 @@ async function extractData(page, responseType) {
     'text+links+images': async () => ({ title, text: await getText(page), links: await getLinks(page), images: await getImages(page) }),
     'text+links-inline': async () => await extractInlineData(page, responseType, title),
     'text+images-inline': async () => await extractInlineData(page, responseType, title),
-    'text+links+images-inline': async () => await extractInlineData(page, responseType, title)
+    'text+links+images-inline': async () => await extractInlineData(page, responseType, title),
+    'json': async () => JSON.parse(await page.evaluate(() => document.body.innerText))
   };
 
   const response = responseTypes[responseType];
