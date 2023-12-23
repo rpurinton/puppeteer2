@@ -41,7 +41,14 @@ async function handleRequest(req, res) {
     }
 
     const requestData = JSON.parse(body);
-    const { url, method: reqMethod = 'GET', postData = '', contentType = 'application/x-www-form-urlencoded', headers: reqHeaders = {}, responseType = 'text' } = requestData;
+    const {
+      url,
+      method: reqMethod = 'GET',
+      postData = '',
+      contentType = 'application/x-www-form-urlencoded',
+      headers: reqHeaders = {},
+      responseType = 'text'
+    } = requestData;
     if (!url || !['GET', 'POST', 'PUT', 'DELETE'].includes(reqMethod) || typeof reqHeaders !== 'object') {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'Invalid request' }));
@@ -62,8 +69,12 @@ async function handleRequest(req, res) {
       }
       await page.setExtraHTTPHeaders(reqHeaders);
     }
-    await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
+    console.log(`Navigating to URL: ${url}`);
+    console.log(`Request method: ${reqMethod}`);
+    console.log(`Post data: ${postData}`);
+    console.log(`Content type: ${contentType}`);
 
+    await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
     let data = await extractData(page, responseType);
     await page.close();
 
