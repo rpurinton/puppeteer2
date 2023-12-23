@@ -74,19 +74,22 @@ async function handleRequest(req, res) {
     console.log(`Post data: ${postData}`);
     console.log(`Content type: ${contentType}`);
 
-    await page.setRequestInterception(true);
-    page.once('request', request => {
-      request.continue({
-        method: reqMethod,
-        postData,
-        headers: {
-          ...request.headers(),
-          'Content-Type': contentType
-        }
-      });
-    });
+    if (reqMethod === 'POST') {
+      await page.setRequestInterception(true);
 
-    await page.goto(url);
+      page.once('request', request => {
+        request.continue({
+          method: reqMethod,
+          postData,
+          headers: {
+            ...request.headers(),
+            'Content-Type': contentType
+          }
+        });
+      });
+
+      await page.goto(url);
+    } else await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
     let data = await extractData(page, responseType);
     await page.close();
 
