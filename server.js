@@ -89,11 +89,10 @@ async function handleRequest(req, res) {
       });
 
       await page.goto(url);
-      await page.waitForNavigation({ waitUntil: 'networkidle0' }); // Add this line
     } else {
       await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
-      await page.waitForNavigation({ waitUntil: 'networkidle0' }); // Add this line
     }
+    await page.waitForTimeout(1000);
 
     let data = await extractData(page, responseType);
     await page.close();
