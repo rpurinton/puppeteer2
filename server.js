@@ -207,8 +207,6 @@ function generateShortUrl(originalUrl) {
 
 const server = http.createServer(handleRequest);
 
-server.use(errorHandler);
-
 server.listen(5469, () => {
   console.log('Server running on port 5469');
 });
