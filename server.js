@@ -1,19 +1,23 @@
 const http = require('http');
-const puppeteer = require('puppeteer');
-const mysql = require('mysql');
-const crypto = require('crypto');
+const { query } = require('./database');
+const { getBrowserInstance } = require('./puppeteer');
 
-let browserInstance;
+async function errorHandler(err, req, res, next) {
+  let statusCode = 500;
+  let message = 'An unexpected error occurred';
 
-async function getBrowserInstance() {
-  if (!browserInstance) {
-    browserInstance = await puppeteer.launch({
-      executablePath: '/usr/bin/chromium-browser',
-      headless: "new",
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-    });
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    statusCode = 400;
+    message = 'Invalid JSON payload';
+  } else if (err.name === 'ValidationError') {
+    statusCode = 400;
+    message = err.message;
+  } else if (err.name === 'CastError') {
+    statusCode = 400;
+    message = 'Invalid parameter value';
   }
-  return browserInstance;
+
+  res.status(statusCode).json({ error: message });
 }
 
 async function processGetRequest(req, res, shortUrl) {
@@ -28,71 +32,78 @@ async function processGetRequest(req, res, shortUrl) {
 }
 
 async function processPostRequest(req, res, body) {
-  const requestData = JSON.parse(body);
-  const {
-    url,
-    method: reqMethod = 'GET',
-    postData = '',
-    contentType = 'application/x-www-form-urlencoded',
-    headers: reqHeaders = {},
-    responseType = 'text'
-  } = requestData;
-  if (!url || !['GET', 'POST', 'PUT', 'DELETE'].includes(reqMethod) || typeof reqHeaders !== 'object') {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ error: 'Invalid request' }));
+  try {
+    const requestData = JSON.parse(body);
+    const {
+      url,
+      method: reqMethod = 'GET',
+      postData = '',
+      contentType = 'application/x-www-form-urlencoded',
+      headers: reqHeaders = {},
+      responseType = 'text'
+    } = requestData;
+    if (!url || !['GET', 'POST', 'PUT', 'DELETE'].includes(reqMethod) || typeof reqHeaders !== 'object') {
+      throw new Error('Invalid request');
+    }
+
+    const browser = await getBrowserInstance();
+    const page = await browser.newPage();
+    await setupPage(reqHeaders, page, url, reqMethod, postData, contentType);
+    let data = await extractData(page, responseType);
+    await page.close();
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(data));
+  } catch (error) {
+    errorHandler(error, req, res);
   }
-
-  const browser = await getBrowserInstance();
-  const page = await browser.newPage();
-  await setupPage(reqHeaders, page, url, reqMethod, postData, contentType);
-  let data = await extractData(page, responseType);
-  await page.close();
-
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify(data));
 }
 
 async function setupPage(reqHeaders, page, url, reqMethod, postData, contentType) {
-  if (reqHeaders['User-Agent']) {
-    await page.setUserAgent(reqHeaders['User-Agent']);
-  } else {
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-  }
-  if (Object.keys(reqHeaders).length > 0) {
-    // validate headers, send 500 if invalid
-    if (Object.keys(reqHeaders).some(header => !/^[A-Za-z0-9-]+$/g.test(header))) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ error: 'Invalid headers' }));
+  try {
+    if (reqHeaders['User-Agent']) {
+      await page.setUserAgent(reqHeaders['User-Agent']);
+    } else {
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     }
-    await page.setExtraHTTPHeaders(reqHeaders);
-  }
-  console.log(`Navigating to URL: ${url}`);
-  console.log(`Request method: ${reqMethod}`);
-  console.log(`Post data: ${postData}`);
-  console.log(`Content type: ${contentType}`);
+    if (Object.keys(reqHeaders).length > 0) {
+      // validate headers, send 500 if invalid
+      if (Object.keys(reqHeaders).some(header => !/^[A-Za-z0-9-]+$/g.test(header))) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Invalid headers' }));
+      }
+      await page.setExtraHTTPHeaders(reqHeaders);
+    }
+    console.log(`Navigating to URL: ${url}`);
+    console.log(`Request method: ${reqMethod}`);
+    console.log(`Post data: ${postData}`);
+    console.log(`Content type: ${contentType}`);
 
-  if (reqMethod === 'POST') {
-    await page.setRequestInterception(true);
+    if (reqMethod === 'POST') {
+      await page.setRequestInterception(true);
 
-    page.once('request', request => {
-      request.continue({
-        method: reqMethod,
-        postData,
-        headers: {
-          ...request.headers(),
-          'Content-Type': contentType
-        }
+      page.once('request', request => {
+        request.continue({
+          method: reqMethod,
+          postData,
+          headers: {
+            ...request.headers(),
+            'Content-Type': contentType
+          }
+        });
       });
-    });
 
-    await page.goto(url);
-  } else {
-    await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
+      await page.goto(url);
+    } else {
+      await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
+    }
+    await Promise.race([
+      page.waitForNavigation({ waitUntil: 'networkidle0' }),
+      new Promise(resolve => setTimeout(resolve, 1000))
+    ]);
+  } catch (error) {
+    errorHandler(error, req, res);
   }
-  await Promise.race([
-    page.waitForNavigation({ waitUntil: 'networkidle0' }),
-    new Promise(resolve => setTimeout(resolve, 1000))
-  ]);
 }
 
 async function handleRequest(req, res) {
@@ -104,8 +115,7 @@ async function handleRequest(req, res) {
       return;
     }
     if (method !== 'POST' || headers['content-type'] !== 'application/json') {
-      res.writeHead(405, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+      throw new Error('Invalid request');
     }
     let body = '';
     for await (const chunk of req) {
@@ -113,8 +123,7 @@ async function handleRequest(req, res) {
     }
     await processPostRequest(req, res, body);
   } catch (error) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: error.message }));
+    errorHandler(error, req, res);
   }
 }
 
@@ -197,19 +206,9 @@ function generateShortUrl(originalUrl) {
   });
 }
 
-const db = mysql.createConnection({
-  host: '127.0.0.1',
-  user: 'puppeteer2',
-  password: 'puppeteer2',
-  database: 'puppeteer2'
-});
-
-db.connect((err) => {
-  if (err) throw err;
-  console.log('Connected to the database');
-});
-
 const server = http.createServer(handleRequest);
+
+server.use(errorHandler);
 
 server.listen(5469, () => {
   console.log('Server running on port 5469');
@@ -219,12 +218,16 @@ process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
 async function shutdown() {
-  server.close(() => {
-    if (browserInstance) {
-      browserInstance.close();
-    }
-  });
-  db.end();
+  try {
+    server.close(() => {
+      if (browserInstance) {
+        browserInstance.close();
+      }
+    });
+    db.end();
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 module.exports = { server, shutdown };
