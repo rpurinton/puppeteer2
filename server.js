@@ -123,10 +123,9 @@ async function handleRequest(req, res) {
     }
     await processPostRequest(req, res, body);
   } catch (error) {
-    errorHandler(error, req, res);
+    await errorHandler(error, req, res);
   }
 }
-
 async function extractData(page, responseType) {
   const title = await page.title();
   const responseTypes = {
