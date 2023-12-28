@@ -16,19 +16,91 @@ async function getBrowserInstance() {
   return browserInstance;
 }
 
+async function processGetRequest(req, res, shortUrl) {
+  db.query('SELECT `original_url` FROM `urls` WHERE `short_url` = ?', [shortUrl], (err, result) => {
+    if (err || result.length === 0) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Not Found' }));
+    }
+    res.writeHead(301, { 'Location': result[0].original_url });
+    res.end();
+  });
+}
+
+async function processPostRequest(req, res, body) {
+  const requestData = JSON.parse(body);
+  const {
+    url,
+    method: reqMethod = 'GET',
+    postData = '',
+    contentType = 'application/x-www-form-urlencoded',
+    headers: reqHeaders = {},
+    responseType = 'text'
+  } = requestData;
+  if (!url || !['GET', 'POST', 'PUT', 'DELETE'].includes(reqMethod) || typeof reqHeaders !== 'object') {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ error: 'Invalid request' }));
+  }
+
+  const browser = await getBrowserInstance();
+  const page = await browser.newPage();
+  await setupPage(reqHeaders, page, url, reqMethod, postData, contentType);
+  let data = await extractData(page, responseType);
+  await page.close();
+
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(data));
+}
+
+async function setupPage(reqHeaders, page, url, reqMethod, postData, contentType) {
+  if (reqHeaders['User-Agent']) {
+    await page.setUserAgent(reqHeaders['User-Agent']);
+  } else {
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+  }
+  if (Object.keys(reqHeaders).length > 0) {
+    // validate headers, send 500 if invalid
+    if (Object.keys(reqHeaders).some(header => !/^[A-Za-z0-9-]+$/g.test(header))) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Invalid headers' }));
+    }
+    await page.setExtraHTTPHeaders(reqHeaders);
+  }
+  console.log(`Navigating to URL: ${url}`);
+  console.log(`Request method: ${reqMethod}`);
+  console.log(`Post data: ${postData}`);
+  console.log(`Content type: ${contentType}`);
+
+  if (reqMethod === 'POST') {
+    await page.setRequestInterception(true);
+
+    page.once('request', request => {
+      request.continue({
+        method: reqMethod,
+        postData,
+        headers: {
+          ...request.headers(),
+          'Content-Type': contentType
+        }
+      });
+    });
+
+    await page.goto(url);
+  } else {
+    await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
+  }
+  await Promise.race([
+    page.waitForNavigation({ waitUntil: 'networkidle0' }),
+    new Promise(resolve => setTimeout(resolve, 1000))
+  ]);
+}
+
 async function handleRequest(req, res) {
   try {
     const { method, headers } = req;
     if (method === 'GET') {
       const shortUrl = req.url.slice(1); // Remove the leading slash
-      db.query('SELECT `original_url` FROM `urls` WHERE `short_url` = ?', [shortUrl], (err, result) => {
-        if (err || result.length === 0) {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: 'Not Found' }));
-        }
-        res.writeHead(301, { 'Location': result[0].original_url });
-        res.end();
-      });
+      await processGetRequest(req, res, shortUrl);
       return;
     }
     if (method !== 'POST' || headers['content-type'] !== 'application/json') {
@@ -39,66 +111,7 @@ async function handleRequest(req, res) {
     for await (const chunk of req) {
       body += chunk;
     }
-
-    const requestData = JSON.parse(body);
-    const {
-      url,
-      method: reqMethod = 'GET',
-      postData = '',
-      contentType = 'application/x-www-form-urlencoded',
-      headers: reqHeaders = {},
-      responseType = 'text'
-    } = requestData;
-    if (!url || !['GET', 'POST', 'PUT', 'DELETE'].includes(reqMethod) || typeof reqHeaders !== 'object') {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ error: 'Invalid request' }));
-    }
-
-    const browser = await getBrowserInstance();
-    const page = await browser.newPage();
-    if (reqHeaders['User-Agent']) {
-      await page.setUserAgent(reqHeaders['User-Agent']);
-    } else {
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    }
-    if (Object.keys(reqHeaders).length > 0) {
-      // validate headers, send 500 if invalid
-      if (Object.keys(reqHeaders).some(header => !/^[A-Za-z0-9-]+$/g.test(header))) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ error: 'Invalid headers' }));
-      }
-      await page.setExtraHTTPHeaders(reqHeaders);
-    }
-    console.log(`Navigating to URL: ${url}`);
-    console.log(`Request method: ${reqMethod}`);
-    console.log(`Post data: ${postData}`);
-    console.log(`Content type: ${contentType}`);
-
-    if (reqMethod === 'POST') {
-      await page.setRequestInterception(true);
-
-      page.once('request', request => {
-        request.continue({
-          method: reqMethod,
-          postData,
-          headers: {
-            ...request.headers(),
-            'Content-Type': contentType
-          }
-        });
-      });
-
-      await page.goto(url);
-    } else {
-      await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
-    }
-    await page.waitForTimeout(1000);
-
-    let data = await extractData(page, responseType);
-    await page.close();
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(data));
+    await processPostRequest(req, res, body);
   } catch (error) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: error.message }));
