@@ -13,4 +13,4 @@ async function getBrowserInstance() {
     return browserInstance;
 }
 
-module.exports = { getBrowserInstance };
+module.exports = { getBrowserInstance, browserInstance };

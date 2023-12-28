@@ -1,6 +1,6 @@
 const http = require('http');
-const { query } = require('./database');
-const { getBrowserInstance } = require('./puppeteer');
+const { db } = require('./database');
+const { getBrowserInstance, browserInstance } = require('./puppeteer');
 
 async function errorHandler(err, req, res, next) {
   let statusCode = 500;

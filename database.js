@@ -24,4 +24,4 @@ function query(sql, args) {
     });
 }
 
-module.exports = { query };
+module.exports = { db, query };
