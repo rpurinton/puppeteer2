@@ -13,6 +13,7 @@ Puppeteer2 is a Node.js server that uses Puppeteer to provide a web scraping API
 Send a POST request to `http://<server-ip>:5469` with a JSON payload containing the `url` property and optional parameters. The server will process the request and return the extracted data from the web page.
 
 Example request using curl:
+
 ```bash
 curl -X POST http://<server-ip>:5469 -H "Content-Type: application/json" -d '{"url": "https://example.com", "responseType": "text"}'
 ```
