@@ -59,23 +59,22 @@ async function processPostRequest(req, res, body) {
     errorHandler(error, req, res);
   }
 }
+
 async function setupPage(reqHeaders, page, url, reqMethod, postData, contentType) {
   try {
-    // Set User-Agent
     if (reqHeaders['User-Agent']) {
       await page.setUserAgent(reqHeaders['User-Agent']);
     } else {
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36');
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     }
-
-    // Set Extra HTTP Headers
     if (Object.keys(reqHeaders).length > 0) {
+      // validate headers, send 500 if invalid
+      if (Object.keys(reqHeaders).some(header => !/^[A-Za-z0-9-]+$/g.test(header))) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Invalid headers' }));
+      }
       await page.setExtraHTTPHeaders(reqHeaders);
     }
-
-    // Enable JavaScript
-    await page.setJavaScriptEnabled(true);
-
     console.log(`Navigating to URL: ${url}`);
     console.log(`Request method: ${reqMethod}`);
     console.log(`Post data: ${postData}`);
@@ -99,12 +98,10 @@ async function setupPage(reqHeaders, page, url, reqMethod, postData, contentType
     } else {
       await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
     }
-
-    // Wait for network to be idle
-    await page.waitForNavigation({ waitUntil: 'networkidle0' });
-
-    // Additional wait to ensure JavaScript execution
-    await page.waitForTimeout(5000);
+    await Promise.race([
+      page.waitForNavigation({ waitUntil: 'networkidle0' }),
+      new Promise(resolve => setTimeout(resolve, 5000))
+    ]);
   } catch (error) {
     errorHandler(error, req, res);
   }
