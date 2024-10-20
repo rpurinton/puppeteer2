@@ -17,7 +17,8 @@ async function errorHandler(err, req, res, next) {
     message = 'Invalid parameter value';
   }
 
-  res.status(statusCode).json({ error: message });
+  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: message }));
 }
 
 async function processGetRequest(req, res, shortUrl) {
