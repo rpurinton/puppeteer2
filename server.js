@@ -65,7 +65,7 @@ async function setupPage(reqHeaders, page, url, reqMethod, postData, contentType
     if (reqHeaders['User-Agent']) {
       await page.setUserAgent(reqHeaders['User-Agent']);
     } else {
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36');
     }
     if (Object.keys(reqHeaders).length > 0) {
       // validate headers, send 500 if invalid
@@ -98,10 +98,24 @@ async function setupPage(reqHeaders, page, url, reqMethod, postData, contentType
     } else {
       await page.goto(url, { method: reqMethod, postData, headers: { 'Content-Type': contentType } });
     }
+
+    // Wait for network to be idle or timeout
     await Promise.race([
       page.waitForNavigation({ waitUntil: 'networkidle0' }),
       new Promise(resolve => setTimeout(resolve, 5000))
     ]);
+
+    // Listen for response events to handle redirects
+    page.on('response', async response => {
+      const status = response.status();
+      if (status >= 300 && status < 400) {
+        const redirectUrl = response.headers()['location'];
+        if (redirectUrl) {
+          console.log(`Redirecting to: ${redirectUrl}`);
+          await page.goto(redirectUrl, { waitUntil: 'networkidle0' });
+        }
+      }
+    });
   } catch (error) {
     errorHandler(error, req, res);
   }
