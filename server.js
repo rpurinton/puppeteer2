@@ -173,11 +173,13 @@ async function extractInlineData(page, responseType, title) {
   let inlineText = text;
   if (responseType.includes('links')) {
     const anchorPromises = anchors.map(async anchor => {
-      try {
-        const shortUrl = await generateShortUrl(anchor.href);
-        inlineText = inlineText.replace(anchor.text, `[${anchor.text}](<https://puppeteer2.discommand.com/${shortUrl}>)`);
-      } catch (error) {
-        console.error(`Error generating short URL for ${anchor.href}: ${error.message}`);
+      if (anchor.text.trim()) { // Check if anchor text is not empty
+        try {
+          const shortUrl = await generateShortUrl(anchor.href);
+          inlineText = inlineText.replace(anchor.text, `[${anchor.text}](<https://puppeteer2.discommand.com/${shortUrl}>)`);
+        } catch (error) {
+          console.error(`Error generating short URL for ${anchor.href}: ${error.message}`);
+        }
       }
     });
     await Promise.all(anchorPromises);
