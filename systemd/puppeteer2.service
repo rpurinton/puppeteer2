@@ -6,9 +6,9 @@ After=network.target
 Type=simple
 User=puppeteer
 Group=puppeteer
-WorkingDirectory=/var/www/puppeteer2
-Environment=PUPPETEER_CACHE_DIR=/var/www/puppeteer2/.cache
-ExecStart=/usr/bin/node /var/www/puppeteer2/server.js
+WorkingDirectory=/opt/puppeteer2
+Environment=PUPPETEER_CACHE_DIR=/opt/puppeteer2/.cache
+ExecStart=/usr/bin/node /opt/puppeteer2/server.js
 Restart=on-failure
 
 [Install]

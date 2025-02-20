@@ -13,4 +13,11 @@ async function getBrowserInstance() {
     return browserInstance;
 }
 
-module.exports = { getBrowserInstance, browserInstance };
+async function closeBrowserInstance() {
+    if (browserInstance) {
+        await browserInstance.close();
+        browserInstance = null;
+    }
+}
+
+module.exports = { getBrowserInstance, closeBrowserInstance };
